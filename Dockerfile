@@ -1,31 +1,50 @@
-# Use official Node.js 20 Alpine image as base
-FROM node:20-alpine
-
-# Set working directory
+# Multi-stage Dockerfile for Railway deployment
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package.json and package-lock.json to leverage Docker cache
 COPY package*.json ./
-# Uncomment the next line if you use pnpm and have pnpm-lock.yaml
-# COPY pnpm-lock.yaml ./
+RUN npm ci --only=production
 
-# Install dependencies (choose npm or pnpm)
-RUN npm install
-# If using pnpm, replace with:
-# RUN npm install -g pnpm && pnpm install
+# Stage 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
 
-# Copy all project files
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the Next.js application
-RUN npm run build
-# Or if using pnpm:
-# RUN pnpm run build
+# Set build-time environment variables
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
-# Expose the port Next.js runs on
+# Build the application with Turbopack
+RUN npm run build
+
+# Stage 3: Production runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy necessary files for standalone output
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port
 EXPOSE 3000
 
-# Start the Next.js production server
-CMD ["npm", "start"]
-# Or if using pnpm:
-# CMD ["pnpm", "start"]
+# Start the application
+CMD ["node", "server.js"]

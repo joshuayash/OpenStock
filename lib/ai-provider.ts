@@ -9,7 +9,7 @@
  * Each provider returns a plain-text string from the model.
  */
 
-export type AIProviderName = "gemini" | "minimax" | "siray";
+export type AIProviderName = "gemini" | "minimax" | "siray" | "kimi";
 
 export interface AIProviderConfig {
   name: AIProviderName;

@@ -30,23 +30,37 @@ if (!cached) {
 
 export const connectToDatabase = async () => {
     if (!MONGODB_URI) {
-        throw new Error("MongoDB URI is missing");
+        console.warn("MongoDB URI not configured - database connection skipped");
+        return null;
     }
 
+    // If already connected, return the cached connection
     if (cached.conn) return cached.conn;
 
-    if (!cached.promise) {
-        cached.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false, family: 4 });
+    // If a connection attempt is already in progress, wait for it
+    if (cached.promise) {
+        try {
+            cached.conn = await cached.promise;
+            return cached.conn;
+        } catch (err) {
+            // Previous attempt failed, clear the promise so we can retry
+            cached.promise = null;
+            console.warn("Previous MongoDB connection failed, will retry on next request");
+        }
     }
 
+    // Try to connect
     try {
+        cached.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false, family: 4 });
         cached.conn = await cached.promise;
-    }
-    catch (err) {
+        console.log(`MongoDB Connected ${MONGODB_URI} in ${process.env.NODE_ENV}`);
+        return cached.conn;
+    } catch (err) {
+        // Connection failed - clear promise and return null
+        // This allows the app to start even if MongoDB isn't available
         cached.promise = null;
-        throw err;
+        console.warn("MongoDB connection failed:", err instanceof Error ? err.message : "Unknown error");
+        console.warn("Application will continue without database connection");
+        return null;
     }
-
-    console.log(`MongoDB Connected ${MONGODB_URI} in ${process.env.NODE_ENV}`);
-    return cached.conn;
 }

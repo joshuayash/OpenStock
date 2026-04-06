@@ -16,8 +16,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set build-time environment variables
+# Dummy MONGODB_URI for build - actual connection uses Railway env vars at runtime
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV MONGODB_URI=mongodb://localhost:27017/openstock
 
 # Build the application with Turbopack
 RUN npm run build

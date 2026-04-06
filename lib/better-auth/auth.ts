@@ -46,7 +46,6 @@ export const getAuth = async () => {
 
 // Proxy for lazy auth initialization
 // Handles auth.api.getSession({...}) pattern
-// @ts-expect-error - Proxy typing is complex
 export const auth = new Proxy({}, {
     get(_, prop) {
         if (prop === 'then' || prop === 'toJSON') {

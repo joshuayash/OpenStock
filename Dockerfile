@@ -1,11 +1,11 @@
 # Multi-stage Dockerfile for Railway deployment
-# Stage 1: Dependencies
+# Stage 1: Dependencies (including dev for build)
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
